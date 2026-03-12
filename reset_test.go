@@ -1,6 +1,7 @@
 package vt10x
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 )
@@ -52,5 +53,18 @@ func TestRISResetLeavesTerminalOnClearedMainScreen(t *testing.T) {
 				t.Fatalf("expected reset screen cell (%d,%d) to be blank, got %q", x, y, got)
 			}
 		}
+	}
+}
+
+func TestCPRReportsRowRelativeToOriginMode(t *testing.T) {
+	var out bytes.Buffer
+	term := New(WithWriter(&out), WithSize(10, 6))
+
+	if _, err := term.Write([]byte("\x1b[2;5r\x1b[?6h\x1b[3;4H\x1b[6n")); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := out.String(); got != "\x1b[3;4R" {
+		t.Fatalf("expected relative CPR reply %q, got %q", "\x1b[3;4R", got)
 	}
 }

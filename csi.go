@@ -168,7 +168,11 @@ func (t *State) handleCSI() {
 		case 5: // DSR - device status report
 			t.w.Write([]byte("\033[0n"))
 		case 6: // CPR - cursor position report
-			t.w.Write([]byte(fmt.Sprintf("\033[%d;%dR", t.cur.Y+1, t.cur.X+1)))
+			row := t.cur.Y + 1
+			if t.cur.State&cursorOrigin != 0 {
+				row = t.cur.Y - t.top + 1
+			}
+			t.w.Write([]byte(fmt.Sprintf("\033[%d;%dR", row, t.cur.X+1)))
 		}
 	case 'r': // DECSTBM - set scrolling region
 		if c.priv {
