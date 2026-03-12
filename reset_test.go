@@ -68,3 +68,16 @@ func TestCPRReportsRowRelativeToOriginMode(t *testing.T) {
 		t.Fatalf("expected relative CPR reply %q, got %q", "\x1b[3;4R", got)
 	}
 }
+
+func TestPrivateCPRIncludesQuestionMarkPrefix(t *testing.T) {
+	var out bytes.Buffer
+	term := New(WithWriter(&out), WithSize(10, 6))
+
+	if _, err := term.Write([]byte("\x1b[?6n")); err != nil {
+		t.Fatal(err)
+	}
+
+	if got := out.String(); got != "\x1b[?1;1R" {
+		t.Fatalf("expected private CPR reply %q, got %q", "\x1b[?1;1R", got)
+	}
+}

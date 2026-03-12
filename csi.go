@@ -172,7 +172,11 @@ func (t *State) handleCSI() {
 			if t.cur.State&cursorOrigin != 0 {
 				row = t.cur.Y - t.top + 1
 			}
-			t.w.Write([]byte(fmt.Sprintf("\033[%d;%dR", row, t.cur.X+1)))
+			if c.priv {
+				t.w.Write([]byte(fmt.Sprintf("\033[?%d;%dR", row, t.cur.X+1)))
+			} else {
+				t.w.Write([]byte(fmt.Sprintf("\033[%d;%dR", row, t.cur.X+1)))
+			}
 		}
 	case 'r': // DECSTBM - set scrolling region
 		if c.priv {
