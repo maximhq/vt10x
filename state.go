@@ -285,6 +285,9 @@ func (t *State) defaultCursor() Cursor {
 }
 
 func (t *State) reset() {
+	if t.mode&ModeAltScreen != 0 {
+		t.swapScreen()
+	}
 	t.cur = t.defaultCursor()
 	t.saveCursor()
 	for i := range t.tabs {
@@ -297,6 +300,9 @@ func (t *State) reset() {
 	t.bottom = t.rows - 1
 	t.mode = ModeWrap
 	t.clear(0, 0, t.cols-1, t.rows-1)
+	t.swapScreen()
+	t.clear(0, 0, t.cols-1, t.rows-1)
+	t.swapScreen()
 	t.moveTo(0, 0)
 }
 
