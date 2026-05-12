@@ -15,7 +15,9 @@ type terminal struct {
 }
 
 func newTerminal(info TerminalInfo) *terminal {
-	t := &terminal{newState(info.w)}
+	s := newState(info.w)
+	s.onScrollUp = info.onScrollUp
+	t := &terminal{s}
 	t.init(info.cols, info.rows)
 	return t
 }

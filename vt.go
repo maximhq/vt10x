@@ -58,9 +58,25 @@ type View interface {
 type TerminalOption func(*TerminalInfo)
 
 type TerminalInfo struct {
-	w          io.Writer
-	cols, rows int
+	w           io.Writer
+	cols, rows  int
+	onScrollUp  OnScrollUpFunc
 }
+
+// OnScrollUpFunc is invoked when one or more lines are about to be evicted
+// from the top of the primary scroll region (i.e. content that is leaving
+// the visible grid). lines holds a defensive copy of the evicted rows in
+// top-to-bottom order; the slice and its elements are owned by the
+// callback and may be retained. altScreen reports whether the eviction
+// happened on the alternate screen — callers maintaining chat-style
+// scrollback typically only want to retain primary-screen evictions, but
+// for TUIs that live entirely in the alternate screen (e.g. Claude Code,
+// Codex) alt-screen evictions are the only source of history.
+//
+// The callback runs while the terminal's internal mutex is held. It must
+// not call any method on the Terminal/View or block on anything that
+// could; do queued work or copy out and process asynchronously.
+type OnScrollUpFunc func(lines [][]Glyph, altScreen bool)
 
 func WithWriter(w io.Writer) TerminalOption {
 	return func(info *TerminalInfo) {
@@ -72,6 +88,18 @@ func WithSize(cols, rows int) TerminalOption {
 	return func(info *TerminalInfo) {
 		info.cols = cols
 		info.rows = rows
+	}
+}
+
+// WithOnScrollUp registers a callback that fires when lines are about to
+// be evicted from the top of the primary scroll region. Only full-region
+// scrolls (orig == top) trigger it; sub-region scrolls produced by
+// DECSTBM-bounded apps are intentionally ignored, since their "evicted"
+// content remains visible elsewhere on screen. See OnScrollUpFunc for
+// locking constraints.
+func WithOnScrollUp(fn OnScrollUpFunc) TerminalOption {
+	return func(info *TerminalInfo) {
+		info.onScrollUp = fn
 	}
 }
 
