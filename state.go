@@ -101,6 +101,7 @@ type State struct {
 	tabs          []bool
 	title         string
 	colorOverride map[Color]Color
+	onScrollUp    OnScrollUpFunc
 }
 
 func newState(w io.Writer) *State {
@@ -482,6 +483,22 @@ func (t *State) scrollDown(orig, n int) {
 
 func (t *State) scrollUp(orig, n int) {
 	n = clamp(n, 0, t.bottom-orig+1)
+	// Capture evicted lines for the optional scrollback hook before they
+	// get cleared in place. Only fire when the active scroll region spans
+	// the full screen — DECSTBM-bounded sub-region scrolls keep their
+	// "evicted" content visible elsewhere on the grid, so they aren't
+	// history. We also require orig == t.top to be defensive against
+	// future callers passing orig != t.top within a full-screen region.
+	if n > 0 && t.onScrollUp != nil && orig == t.top && t.top == 0 && t.bottom == t.rows-1 {
+		evicted := make([][]Glyph, n)
+		for i := 0; i < n; i++ {
+			row := t.lines[orig+i]
+			cp := make([]Glyph, len(row))
+			copy(cp, row)
+			evicted[i] = cp
+		}
+		t.onScrollUp(evicted, t.mode&ModeAltScreen != 0)
+	}
 	t.clear(0, orig, t.cols-1, orig+n-1)
 	t.changed |= ChangedScreen
 	for i := orig; i <= t.bottom-n; i++ {
