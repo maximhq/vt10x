@@ -76,7 +76,7 @@ func (t *State) handleSTR() {
 
 			c := s.argString(1, "")
 			p := &c
-			if p != nil && *p == "?" {
+			if c == "?" {
 				t.oscColorResponse(int(DefaultFG), 10)
 			} else if err := t.setColorName(int(DefaultFG), p); err != nil {
 				t.logf("invalid foreground color: %s\n", maybe(p))
@@ -90,7 +90,7 @@ func (t *State) handleSTR() {
 
 			c := s.argString(1, "")
 			p := &c
-			if p != nil && *p == "?" {
+			if c == "?" {
 				t.oscColorResponse(int(DefaultBG), 11)
 			} else if err := t.setColorName(int(DefaultBG), p); err != nil {
 				t.logf("invalid cursor color: %s\n", maybe(p))
@@ -154,7 +154,8 @@ func (t *State) handleSTR() {
 }
 
 func (t *State) setColorName(j int, p *string) error {
-	if !between(j, 0, 1<<24) {
+	// Valid colors are the palette [0, 1<<24) plus the DefaultFG/BG/Cursor aliases.
+	if !between(j, 0, int(DefaultCursor)) {
 		return fmt.Errorf("invalid color value %d", j)
 	}
 
@@ -174,7 +175,7 @@ func (t *State) setColorName(j int, p *string) error {
 }
 
 func (t *State) oscColorResponse(j, num int) {
-	if j < 0 {
+	if !between(j, 0, int(DefaultCursor)) {
 		t.logf("failed to fetch osc color %d\n", j)
 		return
 	}
@@ -185,11 +186,11 @@ func (t *State) oscColorResponse(j, num int) {
 	}
 
 	r, g, b := rgb(j)
-	t.w.Write([]byte(fmt.Sprintf("\033]%d;rgb:%02x%02x/%02x%02x/%02x%02x\007", num, r, r, g, g, b, b)))
+	fmt.Fprintf(t.w, "\033]%d;rgb:%02x%02x/%02x%02x/%02x%02x\007", num, r, r, g, g, b, b)
 }
 
 func (t *State) osc4ColorResponse(j int) {
-	if j < 0 {
+	if !between(j, 0, int(DefaultCursor)) {
 		t.logf("failed to fetch osc4 color %d\n", j)
 		return
 	}
@@ -200,7 +201,7 @@ func (t *State) osc4ColorResponse(j int) {
 	}
 
 	r, g, b := rgb(j)
-	t.w.Write([]byte(fmt.Sprintf("\033]4;%d;rgb:%02x%02x/%02x%02x/%02x%02x\007", j, r, r, g, g, b, b)))
+	fmt.Fprintf(t.w, "\033]4;%d;rgb:%02x%02x/%02x%02x/%02x%02x\007", j, r, r, g, g, b, b)
 }
 
 func rgb(j int) (r, g, b int) {
