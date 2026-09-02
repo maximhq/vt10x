@@ -1,6 +1,7 @@
 package vt10x
 
 import (
+	"strconv"
 	"testing"
 )
 
@@ -166,6 +167,57 @@ func TestParseColor(t *testing.T) {
 
 			if r != tc.r || g != tc.g || b != tc.b {
 				t.Fatalf("expected (%d, %d, %d), got (%d, %d, %d)", tc.r, tc.g, tc.b, r, g, b)
+			}
+		})
+	}
+}
+
+func TestSetColorNameBounds(t *testing.T) {
+	spec := "rgb:11/22/33"
+
+	type testCase struct {
+		name    string
+		j       int
+		wantErr bool
+	}
+
+	cases := []testCase{
+		{"palette zero", 0, false},
+		{"palette max", 1<<24 - 1, false},
+		{"default fg", int(DefaultFG), false},
+		{"default bg", int(DefaultBG), false},
+		{"default cursor", int(DefaultCursor), false},
+		{"negative", -1, true},
+		{"above max", 1<<24 + 3, true},
+	}
+
+	// Color is a uint32, so on platforms with a 64-bit int this would silently
+	// truncate to palette entry 0 if converted without a bounds check.
+	if strconv.IntSize > 32 {
+		// Computed via a variable so the conversion stays non-constant and the
+		// test still compiles where int is 32 bits.
+		overflow := int64(1<<32-1) + 1 // math.MaxUint32 + 1
+		cases = append(cases, testCase{"truncates to palette zero", int(overflow), true})
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			state := &State{colorOverride: make(map[Color]Color)}
+			err := state.setColorName(tc.j, &spec)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("setColorName(%d) = nil, want error", tc.j)
+				}
+				if len(state.colorOverride) != 0 {
+					t.Fatalf("setColorName(%d) wrote %v, want no override", tc.j, state.colorOverride)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("setColorName(%d) = %v, want nil", tc.j, err)
+			}
+			if got, ok := state.colorOverride[Color(tc.j)]; !ok || got != Color(0x112233) {
+				t.Fatalf("colorOverride[%d] = %v, %v; want 0x112233, true", tc.j, got, ok)
 			}
 		})
 	}
